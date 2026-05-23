@@ -4,6 +4,7 @@ import BettingControls from "./components/BettingControls";
 import DealerView from "./components/DealerView";
 import HandView from "./components/HandView";
 import ResultPanel from "./components/ResultPanel";
+import { DEBUG_SCENARIOS, createDebugScenarioState, type DebugScenarioId } from "./game/debugScenarios";
 import {
   clampBet,
   createInitialGameState,
@@ -11,6 +12,7 @@ import {
   declineInsurance,
   formatHandLabel,
   getAvailableChips,
+  getDisplayAvailableChips,
   hit,
   keepCards,
   MAX_BET,
@@ -62,6 +64,7 @@ function canStandHand(hand: PlayerHand): boolean {
 
 export default function App() {
   const [gameState, setGameState] = useState(readInitialState);
+  const [debugScenarioId, setDebugScenarioId] = useState<DebugScenarioId>("settlement-available");
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, String(gameState.chips));
@@ -69,6 +72,7 @@ export default function App() {
 
   const activeHand = gameState.playerHands[gameState.activeHandIndex];
   const availableChips = getAvailableChips(gameState);
+  const displayAvailableChips = getDisplayAvailableChips(gameState);
 
   const handleChangeBet = (bet: number) => {
     setGameState((previous) => ({
@@ -105,7 +109,7 @@ export default function App() {
           </div>
           <div className="score-card">
             <span>Available</span>
-            <strong>{availableChips}</strong>
+            <strong>{displayAvailableChips}</strong>
           </div>
         </div>
       </section>
@@ -113,6 +117,29 @@ export default function App() {
       <section className="message-banner" aria-live="polite">
         {gameState.message}
       </section>
+
+      {import.meta.env.DEV && (
+        <section className="control-panel debug-panel">
+          <p className="helper-text">開発用シナリオを読み込んで、再現しづらいケースをブラウザ確認できます。</p>
+          <div className="debug-row">
+            <label htmlFor="debug-scenario">Debug Scenario</label>
+            <select
+              id="debug-scenario"
+              value={debugScenarioId}
+              onChange={(event) => setDebugScenarioId(event.target.value as DebugScenarioId)}
+            >
+              {DEBUG_SCENARIOS.map((scenario) => (
+                <option key={scenario.id} value={scenario.id}>
+                  {scenario.label}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={() => setGameState(createDebugScenarioState(debugScenarioId))}>
+              Load Scenario
+            </button>
+          </div>
+        </section>
+      )}
 
       <DealerView dealerHand={gameState.dealerHand} />
 

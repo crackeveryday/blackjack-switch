@@ -23,7 +23,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -47,7 +48,8 @@ button:disabled {
   opacity: 0.4;
 }
 
-input {
+input,
+select {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 14px;
@@ -273,6 +275,17 @@ input {
 .control-panel {
   display: grid;
   gap: 1rem;
+}
+
+.debug-panel {
+  margin-top: 1rem;
+}
+
+.debug-row {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) auto;
+  align-items: end;
 }
 
 .bet-input-group {

@@ -212,6 +212,14 @@ export function getAvailableChips(state: GameState): number {
   return state.chips - getCommittedAmount(state);
 }
 
+export function getDisplayAvailableChips(state: GameState): number {
+  if (state.phase === "settlement" || state.phase === "gameOver") {
+    return state.chips;
+  }
+
+  return getAvailableChips(state);
+}
+
 export function clampBet(bet: number, chips: number): number {
   const rounded = Math.floor(bet / BET_STEP) * BET_STEP;
   const maxAffordable = Math.min(MAX_BET, Math.floor(chips / 2 / BET_STEP) * BET_STEP);
