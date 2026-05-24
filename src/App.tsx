@@ -7,8 +7,10 @@ import ResultPanel from "./components/ResultPanel";
 import { DEBUG_SCENARIOS, createDebugScenarioState, type DebugScenarioId } from "./game/debugScenarios";
 import {
   clampBet,
+  canRepeatBet,
+  canUndoRoundAction,
   createInitialGameState,
-  dealInitialCards,
+  dealNewRound,
   declineInsurance,
   formatHandLabel,
   getAvailableChips,
@@ -18,14 +20,15 @@ import {
   MAX_BET,
   MIN_BET,
   resetGame,
-  startNewRound,
   startNextRound,
+  startNextRoundWithSameBet,
   stand,
   switchCards,
   takeInsurance,
   doubleDown,
   splitHand,
   surrender,
+  undoLastAction,
 } from "./game/gameState";
 import { calculateHandValue } from "./game/hand";
 import { canDoubleDown, canSplit, canSurrender } from "./game/rules";
@@ -55,7 +58,7 @@ function readInitialState() {
 }
 
 function canHitHand(hand: PlayerHand): boolean {
-  return hand.status === "active" && calculateHandValue(hand.cards).total < 21 && !hand.isSplitAces;
+  return hand.status === "active" && calculateHandValue(hand.cards).total < 21;
 }
 
 function canStandHand(hand: PlayerHand): boolean {
@@ -73,6 +76,7 @@ export default function App() {
   const activeHand = gameState.playerHands[gameState.activeHandIndex];
   const availableChips = getAvailableChips(gameState);
   const displayAvailableChips = getDisplayAvailableChips(gameState);
+  const canUndo = canUndoRoundAction(gameState);
 
   const handleChangeBet = (bet: number) => {
     setGameState((previous) => ({
@@ -82,7 +86,7 @@ export default function App() {
   };
 
   const handleDeal = () => {
-    setGameState((previous) => dealInitialCards(startNewRound(previous, previous.currentBet)));
+    setGameState((previous) => dealNewRound(previous, previous.currentBet));
   };
 
   const handleReset = () => {
@@ -117,6 +121,14 @@ export default function App() {
       <section className="message-banner" aria-live="polite">
         {gameState.message}
       </section>
+
+      {canUndo && (
+        <section className="round-action-bar">
+          <button type="button" className="ghost-button" onClick={() => setGameState((previous) => undoLastAction(previous))}>
+            Undo
+          </button>
+        </section>
+      )}
 
       {import.meta.env.DEV && (
         <section className="control-panel debug-panel">
@@ -215,9 +227,19 @@ export default function App() {
 
       {gameState.phase === "settlement" && (
         <section className="control-panel">
-          <button type="button" className="primary-button" onClick={() => setGameState((previous) => startNextRound(previous))}>
-            Next Round
-          </button>
+          <div className="button-row">
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!canRepeatBet(gameState)}
+              onClick={() => setGameState((previous) => startNextRoundWithSameBet(previous))}
+            >
+              Same Bet & Deal
+            </button>
+            <button type="button" onClick={() => setGameState((previous) => startNextRound(previous))}>
+              Next Round
+            </button>
+          </div>
         </section>
       )}
 

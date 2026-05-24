@@ -11,7 +11,6 @@ export function canDoubleDown(hand: PlayerHand, chips: number): boolean {
     !hand.hasActed &&
     hand.cards.length === 2 &&
     !hand.isNaturalBlackjack &&
-    !hand.isSplitAces &&
     chips >= hand.bet
   );
 }

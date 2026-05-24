@@ -1,4 +1,4 @@
-import type { Card, GameState, PlayerHand } from "../types";
+import type { Card, GameState, GameStateSnapshot, PlayerHand } from "../types";
 import { drawCard, shuffleDeck, createDeck } from "./deck";
 import { calculateHandValue, isBust, isNaturalBlackjack } from "./hand";
 import { canDoubleDown, canSplit, canSurrender, shouldDealerHit } from "./rules";
@@ -40,6 +40,38 @@ function resetRoundFields(state: GameState): GameState {
     roundResults: [],
     message: "",
     wasSwitched: false,
+    undoStack: [],
+  };
+}
+
+function createUndoSnapshot(state: GameState): GameStateSnapshot {
+  const { undoStack: _undoStack, ...snapshot } = state;
+  return snapshot;
+}
+
+function clearUndoStack(state: GameState): GameState {
+  return {
+    ...state,
+    undoStack: [],
+  };
+}
+
+function canKeepUndoHistory(state: GameState): boolean {
+  return state.phase === "insurance" || state.phase === "switch" || state.phase === "playerTurn";
+}
+
+function withUndoSnapshot(previousState: GameState, nextState: GameState): GameState {
+  if (nextState === previousState) {
+    return nextState;
+  }
+
+  if (!canKeepUndoHistory(nextState)) {
+    return clearUndoStack(nextState);
+  }
+
+  return {
+    ...nextState,
+    undoStack: [...previousState.undoStack, createUndoSnapshot(previousState)],
   };
 }
 
@@ -52,16 +84,6 @@ function refreshHand(hand: PlayerHand, wasSwitched: boolean): PlayerHand {
     !hand.isFromSplit &&
     !hand.hasActed &&
     hand.status === "active";
-
-  if (hand.isSplitAces && hand.cards.length >= 2) {
-    return {
-      ...hand,
-      isNaturalBlackjack: false,
-      status: "standing",
-      hasActed: true,
-      canSplit: false,
-    };
-  }
 
   if (hand.status === "active" && (natural || total === 21)) {
     return {
@@ -201,6 +223,24 @@ export function createInitialGameState(initialChips = INITIAL_CHIPS): GameState 
       initialChips <= 0 ? "チップがありません。リセットしてください。" : "ベットを決めて Deal してください。",
     wasSwitched: false,
     needsShuffle: false,
+    undoStack: [],
+  };
+}
+
+export function canUndoRoundAction(state: GameState): boolean {
+  return canKeepUndoHistory(state) && state.undoStack.length > 0;
+}
+
+export function undoLastAction(state: GameState): GameState {
+  if (!canUndoRoundAction(state)) {
+    return state;
+  }
+
+  const previousState = state.undoStack[state.undoStack.length - 1];
+
+  return {
+    ...previousState,
+    undoStack: state.undoStack.slice(0, -1),
   };
 }
 
@@ -299,6 +339,26 @@ export function dealInitialCards(state: GameState): GameState {
   };
 }
 
+export function dealNewRound(state: GameState, bet: number): GameState {
+  if (state.phase !== "betting") {
+    return state;
+  }
+
+  const startedState = startNewRound(state, bet);
+
+  if (startedState.playerHands.length !== 2 || startedState.playerHands.some((hand) => hand.cards.length > 0)) {
+    return startedState;
+  }
+
+  const dealtState = dealInitialCards(startedState);
+  const dealtInitialCards =
+    dealtState.playerHands.length === 2 &&
+    dealtState.playerHands.every((hand) => hand.cards.length === 2) &&
+    dealtState.dealerHand.cards.length === 2;
+
+  return dealtInitialCards ? withUndoSnapshot(state, dealtState) : dealtState;
+}
+
 function resolveInsuranceChoice(state: GameState, insuranceTaken: boolean): GameState {
   if (state.phase !== "insurance") {
     return state;
@@ -346,11 +406,17 @@ function resolveInsuranceChoice(state: GameState, insuranceTaken: boolean): Game
 }
 
 export function takeInsurance(state: GameState): GameState {
-  return resolveInsuranceChoice(state, true);
+  const nextState = resolveInsuranceChoice(state, true);
+  const insuranceApplied =
+    nextState.phase !== state.phase ||
+    nextState.insuranceTaken !== state.insuranceTaken ||
+    nextState.insuranceBet !== state.insuranceBet;
+
+  return insuranceApplied ? withUndoSnapshot(state, nextState) : nextState;
 }
 
 export function declineInsurance(state: GameState): GameState {
-  return resolveInsuranceChoice(state, false);
+  return withUndoSnapshot(state, resolveInsuranceChoice(state, false));
 }
 
 export function switchCards(state: GameState): GameState {
@@ -385,12 +451,12 @@ export function switchCards(state: GameState): GameState {
     },
   ];
 
-  return enterPlayerTurn({
+  return withUndoSnapshot(state, enterPlayerTurn({
     ...state,
     wasSwitched: true,
     playerHands,
     message: "2 枚目同士を入れ替えました。",
-  });
+  }));
 }
 
 export function keepCards(state: GameState): GameState {
@@ -398,10 +464,10 @@ export function keepCards(state: GameState): GameState {
     return state;
   }
 
-  return enterPlayerTurn({
+  return withUndoSnapshot(state, enterPlayerTurn({
     ...state,
     message: "Keep を選びました。",
-  });
+  }));
 }
 
 export function hit(state: GameState): GameState {
@@ -432,13 +498,13 @@ export function hit(state: GameState): GameState {
   const nextState = replacePlayerHand(draw.state, draw.state.activeHandIndex, nextHand);
 
   if (nextHand.status === "active") {
-    return {
+    return withUndoSnapshot(state, {
       ...nextState,
       message: `${formatHandLabel(nextHand.id)} にカードを 1 枚追加しました。`,
-    };
+    });
   }
 
-  return moveToNextPlayableHand(nextState, state.activeHandIndex + 1);
+  return withUndoSnapshot(state, moveToNextPlayableHand(nextState, state.activeHandIndex + 1));
 }
 
 export function stand(state: GameState): GameState {
@@ -459,7 +525,7 @@ export function stand(state: GameState): GameState {
     canSplit: false,
   });
 
-  return moveToNextPlayableHand(nextState, state.activeHandIndex + 1);
+  return withUndoSnapshot(state, moveToNextPlayableHand(nextState, state.activeHandIndex + 1));
 }
 
 export function doubleDown(state: GameState): GameState {
@@ -491,21 +557,11 @@ export function doubleDown(state: GameState): GameState {
   };
   const nextState = replacePlayerHand(draw.state, draw.state.activeHandIndex, nextHand);
 
-  return moveToNextPlayableHand(nextState, state.activeHandIndex + 1);
+  return withUndoSnapshot(state, moveToNextPlayableHand(nextState, state.activeHandIndex + 1));
 }
 
 function finalizeSplitHand(hand: PlayerHand, wasSwitched: boolean): PlayerHand {
   const total = calculateHandValue(hand.cards).total;
-
-  if (hand.isSplitAces) {
-    return {
-      ...hand,
-      isNaturalBlackjack: false,
-      hasActed: true,
-      status: "standing",
-      canSplit: false,
-    };
-  }
 
   if (total === 21) {
     return {
@@ -568,14 +624,14 @@ export function splitHand(state: GameState): GameState {
     return finalizeSplitHand(hand, withSecondCard.wasSwitched);
   });
 
-  return moveToNextPlayableHand(
+  return withUndoSnapshot(state, moveToNextPlayableHand(
     {
       ...withSecondCard,
       playerHands: finalizedHands,
       message: `${formatHandLabel(activeHand.id)} を Split しました。`,
     },
     state.activeHandIndex,
-  );
+  ));
 }
 
 export function surrender(state: GameState): GameState {
@@ -596,7 +652,7 @@ export function surrender(state: GameState): GameState {
     canSplit: false,
   });
 
-  return moveToNextPlayableHand(nextState, state.activeHandIndex + 1);
+  return withUndoSnapshot(state, moveToNextPlayableHand(nextState, state.activeHandIndex + 1));
 }
 
 export function playDealerTurn(state: GameState): GameState {
@@ -625,6 +681,16 @@ export function playDealerTurn(state: GameState): GameState {
   return settleRound(nextState);
 }
 
+export function canRepeatBet(state: GameState): boolean {
+  return (
+    state.phase === "settlement" &&
+    state.currentBet >= MIN_BET &&
+    state.currentBet <= MAX_BET &&
+    state.currentBet % BET_STEP === 0 &&
+    state.chips >= state.currentBet * 2
+  );
+}
+
 export function startNextRound(state: GameState): GameState {
   if (state.phase !== "settlement") {
     return state;
@@ -646,6 +712,28 @@ export function startNextRound(state: GameState): GameState {
           ? "次のラウンド開始時にシューをシャッフルします。"
           : "ベットを決めて Deal してください。",
   };
+}
+
+export function startNextRoundWithSameBet(state: GameState): GameState {
+  if (state.phase !== "settlement") {
+    return state;
+  }
+
+  if (!canRepeatBet(state)) {
+    return {
+      ...state,
+      undoStack: [],
+      message: "同じベットで続けるためのチップが足りません。",
+    };
+  }
+
+  const bettingState = startNextRound(state);
+
+  if (bettingState.phase !== "betting") {
+    return clearUndoStack(bettingState);
+  }
+
+  return dealNewRound(bettingState, state.currentBet);
 }
 
 export function resetGame(): GameState {

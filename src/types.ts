@@ -60,7 +60,7 @@ export type RoundResult = {
   reason: string;
 };
 
-export type GameState = {
+export type GameStateSnapshot = {
   phase: GamePhase;
   deck: Card[];
   discardPile: Card[];
@@ -75,4 +75,8 @@ export type GameState = {
   message: string;
   wasSwitched: boolean;
   needsShuffle: boolean;
+};
+
+export type GameState = GameStateSnapshot & {
+  undoStack: GameStateSnapshot[];
 };
