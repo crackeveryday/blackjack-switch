@@ -299,6 +299,12 @@ select {
   gap: 0.5rem;
 }
 
+.bet-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .button-row {
   display: flex;
   gap: 0.75rem;
@@ -334,6 +340,28 @@ select {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.super-match-summary {
+  margin-top: 0.9rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.super-match-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.super-match-grid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0.8rem;
+  color: rgba(247, 245, 239, 0.86);
+}
+
 .footer-actions {
   display: flex;
   justify-content: flex-end;
@@ -365,8 +393,16 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .bet-grid {
+    grid-template-columns: 1fr;
+  }
+
   .button-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .super-match-grid {
+    grid-template-columns: 1fr;
   }
 }

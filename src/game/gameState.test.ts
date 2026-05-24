@@ -5,6 +5,7 @@ import {
   canUndoRoundAction,
   createInitialGameState,
   dealNewRound,
+  getAvailableChips,
   doubleDown,
   hit,
   keepCards,
@@ -56,6 +57,69 @@ function basePlayerTurnState(overrides: Partial<GameState> = {}): GameState {
     ...overrides,
   };
 }
+
+describe("dealNewRound", () => {
+  it("starts a round normally when no Super Match bet is placed", () => {
+    const state = {
+      ...createInitialGameState(),
+      deck: [
+        card("8"),
+        card("7", "hearts"),
+        card("2", "clubs"),
+        card("K", "diamonds"),
+        card("8", "clubs"),
+        card("5", "hearts"),
+      ],
+      currentSuperMatchBet: 0,
+    };
+
+    const nextState = dealNewRound(state, 100, 0);
+
+    expect(nextState.phase).toBe("switch");
+    expect(nextState.superMatchBet).toBe(0);
+    expect(nextState.superMatchSummary).toBeNull();
+  });
+
+  it("stores the original four player cards for Super Match before switch", () => {
+    const state = {
+      ...createInitialGameState(),
+      deck: [
+        card("8"),
+        card("7", "hearts"),
+        card("2", "clubs"),
+        card("K", "diamonds"),
+        card("8", "clubs"),
+        card("5", "hearts"),
+      ],
+      currentSuperMatchBet: 20,
+    };
+
+    const nextState = dealNewRound(state, 100, 20);
+    const switchedState = switchCards(nextState);
+
+    expect(nextState.superMatchBet).toBe(20);
+    expect(nextState.superMatchInitialHands).toEqual([
+      [card("8"), card("K", "diamonds")],
+      [card("7", "hearts"), card("8", "clubs")],
+    ]);
+    expect(switchedState.playerHands[0].cards).toEqual([card("8"), card("8", "clubs")]);
+    expect(switchedState.superMatchInitialHands).toEqual(nextState.superMatchInitialHands);
+  });
+
+  it("rejects a round when chips cannot cover hand bets and Super Match", () => {
+    const state = {
+      ...createInitialGameState(210),
+      currentBet: 100,
+      currentSuperMatchBet: 20,
+    };
+
+    const nextState = dealNewRound(state, 100, 20);
+
+    expect(nextState.phase).toBe("betting");
+    expect(nextState.playerHands).toEqual([]);
+    expect(nextState.message).toContain("Super Match");
+  });
+});
 
 describe("switchCards", () => {
   it("swaps only the second card of each starting hand and marks the round as switched", () => {
@@ -319,6 +383,8 @@ describe("startNextRoundWithSameBet", () => {
         deck: [card("2"), card("3"), card("4"), card("5"), card("6"), card("7")],
         chips: 1200,
         currentBet: 100,
+        currentSuperMatchBet: 20,
+        superMatchBet: 20,
         insuranceBet: 100,
         insuranceTaken: true,
         playerHands: [
@@ -338,6 +404,8 @@ describe("startNextRoundWithSameBet", () => {
     expect(canRepeatBet(state)).toBe(true);
     expect(nextState.phase).toBe("switch");
     expect(nextState.currentBet).toBe(100);
+    expect(nextState.currentSuperMatchBet).toBe(20);
+    expect(nextState.superMatchBet).toBe(20);
     expect(nextState.playerHands).toHaveLength(2);
     expect(nextState.playerHands.every((currentHand) => currentHand.bet === 100)).toBe(true);
     expect(nextState.insuranceBet).toBe(0);
@@ -347,8 +415,9 @@ describe("startNextRoundWithSameBet", () => {
     const state = {
       ...basePlayerTurnState({
         phase: "settlement",
-        chips: 150,
+        chips: 210,
         currentBet: 100,
+        currentSuperMatchBet: 20,
       }),
       roundResults: [],
     };
@@ -357,7 +426,7 @@ describe("startNextRoundWithSameBet", () => {
 
     expect(canRepeatBet(state)).toBe(false);
     expect(nextState.phase).toBe("settlement");
-    expect(nextState.message).toBe("同じベットで続けるためのチップが足りません。");
+    expect(nextState.message).toBe("前回の通常ベットと Super Match ベットを続けるためのチップが足りません。");
     expect(nextState.undoStack).toEqual([]);
   });
 
@@ -405,6 +474,16 @@ describe("startNextRoundWithSameBet", () => {
     expect(nextState.phase).toBe("betting");
     expect(dealtState.currentBet).toBe(150);
     expect(dealtState.playerHands.every((currentHand) => currentHand.bet === 150)).toBe(true);
+  });
+
+  it("includes Super Match in available chips during a round", () => {
+    const state = {
+      ...basePlayerTurnState({
+        superMatchBet: 30,
+      }),
+    };
+
+    expect(getAvailableChips(state)).toBe(770);
   });
 });
 

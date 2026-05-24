@@ -61,11 +61,44 @@ describe("settleRound", () => {
       chips: 1000,
       insuranceTaken: true,
       insuranceBet: 100,
-      playerHands: [playerHand({ id: "hand-1" }), playerHand({ id: "hand-2", cards: [card("9"), card("9", "hearts")] })],
+      playerHands: [],
       dealerHand: dealerHand([card("10"), card("7", "clubs")]),
     });
 
     expect(settled.roundResults.find((result) => result.handId === "insurance")?.amount).toBe(-100);
+  });
+
+  it("adds Super Match settlement from the original four player cards", () => {
+    const settled = settleRound({
+      ...createInitialGameState(),
+      chips: 1000,
+      superMatchBet: 20,
+      superMatchInitialHands: [
+        [card("8"), card("K", "hearts")],
+        [card("8", "clubs"), card("7", "diamonds")],
+      ],
+      playerHands: [],
+      dealerHand: dealerHand([card("10"), card("7", "clubs")]),
+    });
+
+    expect(settled.superMatchSummary?.displayLabel).toBe("One Pair");
+    expect(settled.superMatchSummary?.profit).toBe(20);
+    expect(settled.superMatchSummary?.returned).toBe(40);
+    expect(settled.roundResults.find((result) => result.handId === "super-match")).toBeUndefined();
+    expect(settled.chips).toBe(1020);
+  });
+
+  it("shows no side bet when none was placed", () => {
+    const settled = settleRound({
+      ...createInitialGameState(),
+      chips: 1000,
+      playerHands: [],
+      dealerHand: dealerHand([card("10"), card("7", "clubs")]),
+    });
+
+    expect(settled.superMatchSummary?.placed).toBe(false);
+    expect(settled.superMatchSummary?.displayLabel).toBe("No Side Bet");
+    expect(settled.chips).toBe(1000);
   });
 });
 

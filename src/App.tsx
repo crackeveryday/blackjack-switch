@@ -7,6 +7,7 @@ import ResultPanel from "./components/ResultPanel";
 import { DEBUG_SCENARIOS, createDebugScenarioState, type DebugScenarioId } from "./game/debugScenarios";
 import {
   clampBet,
+  clampOptionalBet,
   canRepeatBet,
   canUndoRoundAction,
   createInitialGameState,
@@ -81,12 +82,25 @@ export default function App() {
   const handleChangeBet = (bet: number) => {
     setGameState((previous) => ({
       ...previous,
-      currentBet: clampBet(Math.max(MIN_BET, Math.min(MAX_BET, Number.isNaN(bet) ? previous.currentBet : bet)), previous.chips),
+      currentBet: clampBet(
+        Math.max(MIN_BET, Math.min(MAX_BET, Number.isNaN(bet) ? previous.currentBet : bet)),
+        Math.max(0, previous.chips - previous.currentSuperMatchBet),
+      ),
+    }));
+  };
+
+  const handleChangeSuperMatchBet = (bet: number) => {
+    setGameState((previous) => ({
+      ...previous,
+      currentSuperMatchBet: clampOptionalBet(
+        Math.max(0, Math.min(MAX_BET, Number.isNaN(bet) ? previous.currentSuperMatchBet : bet)),
+        Math.max(0, previous.chips - previous.currentBet * 2),
+      ),
     }));
   };
 
   const handleDeal = () => {
-    setGameState((previous) => dealNewRound(previous, previous.currentBet));
+    setGameState((previous) => dealNewRound(previous, previous.currentBet, previous.currentSuperMatchBet));
   };
 
   const handleReset = () => {
@@ -165,7 +179,9 @@ export default function App() {
         <BettingControls
           chips={gameState.chips}
           currentBet={gameState.currentBet}
+          currentSuperMatchBet={gameState.currentSuperMatchBet}
           onChangeBet={handleChangeBet}
+          onChangeSuperMatchBet={handleChangeSuperMatchBet}
           onDeal={handleDeal}
         />
       )}
@@ -223,7 +239,7 @@ export default function App() {
         </section>
       )}
 
-      <ResultPanel results={gameState.roundResults} />
+      <ResultPanel results={gameState.roundResults} superMatchSummary={gameState.superMatchSummary} />
 
       {gameState.phase === "settlement" && (
         <section className="control-panel">

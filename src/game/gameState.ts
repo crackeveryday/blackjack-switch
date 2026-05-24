@@ -1,4 +1,4 @@
-import type { Card, GameState, GameStateSnapshot, PlayerHand } from "../types";
+import type { Card, GameState, GameStateSnapshot, InitialHandSnapshot, PlayerHand } from "../types";
 import { drawCard, shuffleDeck, createDeck } from "./deck";
 import { calculateHandValue, isBust, isNaturalBlackjack } from "./hand";
 import { canDoubleDown, canSplit, canSurrender, shouldDealerHit } from "./rules";
@@ -35,6 +35,9 @@ function resetRoundFields(state: GameState): GameState {
       holeCardRevealed: false,
     },
     activeHandIndex: 0,
+    superMatchBet: 0,
+    superMatchInitialHands: null,
+    superMatchSummary: null,
     insuranceBet: 0,
     insuranceTaken: false,
     roundResults: [],
@@ -216,6 +219,10 @@ export function createInitialGameState(initialChips = INITIAL_CHIPS): GameState 
     activeHandIndex: 0,
     chips: initialChips,
     currentBet: 100,
+    currentSuperMatchBet: 0,
+    superMatchBet: 0,
+    superMatchInitialHands: null,
+    superMatchSummary: null,
     insuranceBet: 0,
     insuranceTaken: false,
     roundResults: [],
@@ -245,7 +252,7 @@ export function undoLastAction(state: GameState): GameState {
 }
 
 export function getCommittedAmount(state: GameState): number {
-  return state.playerHands.reduce((total, hand) => total + hand.bet, 0) + state.insuranceBet;
+  return state.playerHands.reduce((total, hand) => total + hand.bet, 0) + state.insuranceBet + state.superMatchBet;
 }
 
 export function getAvailableChips(state: GameState): number {
@@ -269,15 +276,40 @@ export function clampBet(bet: number, chips: number): number {
   return Math.max(MIN_BET, Math.min(lowerBound, upperBound));
 }
 
-export function startNewRound(state: GameState, bet: number): GameState {
+export function clampOptionalBet(bet: number, chips: number): number {
+  if (bet <= 0) {
+    return 0;
+  }
+
+  const rounded = Math.floor(bet / BET_STEP) * BET_STEP;
+  const maxAffordable = Math.min(MAX_BET, Math.floor(chips / BET_STEP) * BET_STEP);
+
+  if (maxAffordable < MIN_BET) {
+    return 0;
+  }
+
+  return Math.max(MIN_BET, Math.min(rounded, maxAffordable));
+}
+
+function isValidOptionalBet(bet: number): boolean {
+  return bet === 0 || (bet >= MIN_BET && bet <= MAX_BET && bet % BET_STEP === 0);
+}
+
+export function startNewRound(state: GameState, bet: number, superMatchBet = state.currentSuperMatchBet): GameState {
   if (state.phase === "gameOver") {
     return state;
   }
 
-  if (bet < MIN_BET || bet > MAX_BET || bet % BET_STEP !== 0 || state.chips < bet * 2) {
+  if (
+    bet < MIN_BET ||
+    bet > MAX_BET ||
+    bet % BET_STEP !== 0 ||
+    !isValidOptionalBet(superMatchBet) ||
+    state.chips < bet * 2 + superMatchBet
+  ) {
     return {
       ...state,
-      message: "ベット額が不正です。10-500 の範囲で 10 単位にしてください。",
+      message: "ベット額が不正です。通常ベットは10-500、Super Match は0または10-500の範囲で10単位にしてください。",
     };
   }
 
@@ -286,6 +318,8 @@ export function startNewRound(state: GameState, bet: number): GameState {
   return {
     ...preparedState,
     currentBet: bet,
+    currentSuperMatchBet: superMatchBet,
+    superMatchBet,
     playerHands: [createPlayerHand("hand-1", bet), createPlayerHand("hand-2", bet)],
     dealerHand: {
       cards: [],
@@ -327,11 +361,16 @@ export function dealInitialCards(state: GameState): GameState {
     isNaturalBlackjack: isNaturalBlackjack(hand.cards, false, false),
     canSplit: hand.cards[0].rank === hand.cards[1].rank,
   }));
+  const superMatchInitialHands: InitialHandSnapshot = [
+    [...playerHands[0].cards],
+    [...playerHands[1].cards],
+  ];
   const dealerShowsAce = nextState.dealerHand.cards[0]?.rank === "A";
 
   return {
     ...nextState,
     playerHands,
+    superMatchInitialHands,
     phase: dealerShowsAce ? "insurance" : "switch",
     message: dealerShowsAce
       ? "ディーラーが A を見せています。Insurance を選んでください。"
@@ -339,12 +378,12 @@ export function dealInitialCards(state: GameState): GameState {
   };
 }
 
-export function dealNewRound(state: GameState, bet: number): GameState {
+export function dealNewRound(state: GameState, bet: number, superMatchBet = state.currentSuperMatchBet): GameState {
   if (state.phase !== "betting") {
     return state;
   }
 
-  const startedState = startNewRound(state, bet);
+  const startedState = startNewRound(state, bet, superMatchBet);
 
   if (startedState.playerHands.length !== 2 || startedState.playerHands.some((hand) => hand.cards.length > 0)) {
     return startedState;
@@ -687,7 +726,8 @@ export function canRepeatBet(state: GameState): boolean {
     state.currentBet >= MIN_BET &&
     state.currentBet <= MAX_BET &&
     state.currentBet % BET_STEP === 0 &&
-    state.chips >= state.currentBet * 2
+    isValidOptionalBet(state.currentSuperMatchBet) &&
+    state.chips >= state.currentBet * 2 + state.currentSuperMatchBet
   );
 }
 
@@ -698,12 +738,14 @@ export function startNextRound(state: GameState): GameState {
 
   const discardPile = addUsedCardsToDiscard(state);
   const needsShuffle = state.deck.length < SHUFFLE_THRESHOLD;
+  const currentBet = clampBet(state.currentBet, state.chips);
 
   return {
     ...resetRoundFields(state),
     phase: state.chips <= 0 ? "gameOver" : "betting",
     discardPile,
-    currentBet: clampBet(state.currentBet, state.chips),
+    currentBet,
+    currentSuperMatchBet: clampOptionalBet(state.currentSuperMatchBet, Math.max(0, state.chips - currentBet * 2)),
     needsShuffle,
     message:
       state.chips <= 0
@@ -723,7 +765,7 @@ export function startNextRoundWithSameBet(state: GameState): GameState {
     return {
       ...state,
       undoStack: [],
-      message: "同じベットで続けるためのチップが足りません。",
+      message: "前回の通常ベットと Super Match ベットを続けるためのチップが足りません。",
     };
   }
 
@@ -733,7 +775,7 @@ export function startNextRoundWithSameBet(state: GameState): GameState {
     return clearUndoStack(bettingState);
   }
 
-  return dealNewRound(bettingState, state.currentBet);
+  return dealNewRound(bettingState, state.currentBet, state.currentSuperMatchBet);
 }
 
 export function resetGame(): GameState {

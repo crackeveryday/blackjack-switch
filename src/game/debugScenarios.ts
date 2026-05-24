@@ -1,5 +1,6 @@
 import type { Card, GameState, PlayerHand, RoundResult } from "../types";
 import { createInitialGameState } from "./gameState";
+import { createSuperMatchSummary } from "./superMatch";
 
 export type DebugScenarioId =
   | "settlement-available"
@@ -87,6 +88,7 @@ export function createDebugScenarioState(id: DebugScenarioId): GameState {
           settlementResult("hand-1", "surrender", -50, "サレンダーで半額を失いました。"),
           settlementResult("hand-2", "lose", -100, "ディーラー 19 がプレイヤー 14 を上回りました。"),
         ],
+        superMatchSummary: createSuperMatchSummary(0, null),
         message: "ラウンド精算: -150",
         wasSwitched: true,
       };
@@ -161,6 +163,7 @@ export function createDebugScenarioState(id: DebugScenarioId): GameState {
           settlementResult("hand-1", "push", 0, "ディーラー22ルールでプッシュです。"),
           settlementResult("hand-2", "win", 100, "ナチュラルブラックジャックです。"),
         ],
+        superMatchSummary: createSuperMatchSummary(0, null),
         message: "ラウンド精算: +100",
       };
     case "split-aces":
@@ -220,6 +223,7 @@ export function createDebugScenarioState(id: DebugScenarioId): GameState {
           settlementResult("hand-1", "lose", -100, "プレイヤーがバーストしました。"),
           settlementResult("hand-2", "lose", -100, "プレイヤーがバーストしました。"),
         ],
+        superMatchSummary: createSuperMatchSummary(0, null),
         message: "チップがなくなりました。リセットしてください。",
       };
   }
