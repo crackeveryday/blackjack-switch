@@ -167,7 +167,14 @@ export function createDebugScenarioState(id: DebugScenarioId): GameState {
       return {
         ...baseState(1000),
         phase: "playerTurn",
-        deck: [card("10", "clubs"), card("9", "diamonds")],
+        deck: [
+          card("10", "clubs"),
+          card("9", "diamonds"),
+          card("2", "clubs"),
+          card("3", "hearts"),
+          card("4", "diamonds"),
+          card("5", "spades"),
+        ],
         activeHandIndex: 0,
         playerHands: [
           hand({
