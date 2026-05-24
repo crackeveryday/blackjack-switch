@@ -119,6 +119,21 @@ describe("dealNewRound", () => {
     expect(nextState.playerHands).toEqual([]);
     expect(nextState.message).toContain("Super Match");
   });
+
+  it("rejects a round when the main bet is reset to zero", () => {
+    const state = {
+      ...createInitialGameState(),
+      currentBet: 0,
+      currentSuperMatchBet: 20,
+    };
+
+    const nextState = dealNewRound(state, 0, 20);
+
+    expect(nextState.phase).toBe("betting");
+    expect(nextState.playerHands).toEqual([]);
+    expect(nextState.currentSuperMatchBet).toBe(20);
+    expect(nextState.message).toContain("通常ベットは10-500");
+  });
 });
 
 describe("switchCards", () => {

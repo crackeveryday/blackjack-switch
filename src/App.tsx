@@ -19,7 +19,6 @@ import {
   hit,
   keepCards,
   MAX_BET,
-  MIN_BET,
   resetGame,
   startNextRound,
   startNextRoundWithSameBet,
@@ -80,13 +79,26 @@ export default function App() {
   const canUndo = canUndoRoundAction(gameState);
 
   const handleChangeBet = (bet: number) => {
-    setGameState((previous) => ({
-      ...previous,
-      currentBet: clampBet(
-        Math.max(MIN_BET, Math.min(MAX_BET, Number.isNaN(bet) ? previous.currentBet : bet)),
-        Math.max(0, previous.chips - previous.currentSuperMatchBet),
-      ),
-    }));
+    setGameState((previous) => {
+      if (Number.isNaN(bet)) {
+        return previous;
+      }
+
+      if (bet <= 0) {
+        return {
+          ...previous,
+          currentBet: 0,
+        };
+      }
+
+      return {
+        ...previous,
+        currentBet: clampBet(
+          Math.min(MAX_BET, bet),
+          Math.max(0, previous.chips - previous.currentSuperMatchBet),
+        ),
+      };
+    });
   };
 
   const handleChangeSuperMatchBet = (bet: number) => {

@@ -19,7 +19,7 @@ export default function BettingControls({
 }: BettingControlsProps) {
   const maxBet = Math.min(MAX_BET, Math.floor((chips - currentSuperMatchBet) / 2 / BET_STEP) * BET_STEP);
   const maxSuperMatchBet = Math.min(MAX_BET, Math.floor((chips - currentBet * 2) / BET_STEP) * BET_STEP);
-  const canDeal = chips >= currentBet * 2 + currentSuperMatchBet;
+  const canDeal = currentBet >= MIN_BET && chips >= currentBet * 2 + currentSuperMatchBet;
   const totalCommitted = currentBet * 2 + currentSuperMatchBet;
 
   return (
@@ -30,7 +30,7 @@ export default function BettingControls({
           <input
             id="bet-input"
             type="number"
-            min={MIN_BET}
+            min={0}
             max={MAX_BET}
             step={BET_STEP}
             value={currentBet}
@@ -70,6 +70,9 @@ export default function BettingControls({
         <button type="button" onClick={() => onChangeBet(maxBet)}>
           Max
         </button>
+        <button type="button" onClick={() => onChangeBet(0)}>
+          Reset
+        </button>
       </div>
       <div className="button-row">
         <button type="button" onClick={() => onChangeSuperMatchBet(0)}>
@@ -77,6 +80,9 @@ export default function BettingControls({
         </button>
         <button type="button" onClick={() => onChangeSuperMatchBet(currentSuperMatchBet + BET_STEP)}>
           Super Match +10
+        </button>
+        <button type="button" onClick={() => onChangeSuperMatchBet(currentSuperMatchBet + 100)}>
+          Super Match +100
         </button>
         <button type="button" onClick={() => onChangeSuperMatchBet(maxSuperMatchBet)}>
           Super Match Max
