@@ -60,6 +60,28 @@ export type RoundResult = {
   reason: string;
 };
 
+export type InitialHandSnapshot = [Card[], Card[]];
+
+export type SuperMatchOutcome =
+  | "four-of-a-kind"
+  | "two-pair"
+  | "three-of-a-kind"
+  | "one-pair-same-hand"
+  | "one-pair"
+  | "no-match";
+
+export type SuperMatchSummary = {
+  placed: boolean;
+  outcome: SuperMatchOutcome | "no-side-bet";
+  label: string;
+  displayLabel: string;
+  multiplier: number;
+  bet: number;
+  profit: number;
+  returned: number;
+  logMessage: string | null;
+};
+
 export type GameStateSnapshot = {
   phase: GamePhase;
   deck: Card[];
@@ -69,6 +91,10 @@ export type GameStateSnapshot = {
   activeHandIndex: number;
   chips: number;
   currentBet: number;
+  currentSuperMatchBet: number;
+  superMatchBet: number;
+  superMatchInitialHands: InitialHandSnapshot | null;
+  superMatchSummary: SuperMatchSummary | null;
   insuranceBet: number;
   insuranceTaken: boolean;
   roundResults: RoundResult[];

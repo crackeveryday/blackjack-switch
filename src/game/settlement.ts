@@ -1,5 +1,6 @@
 import type { DealerHand, GameState, PlayerHand, RoundResult } from "../types";
 import { calculateHandValue, isNaturalBlackjack } from "./hand";
+import { createSuperMatchResult, createSuperMatchSummary } from "./superMatch";
 
 function createInsuranceResult(state: GameState): RoundResult | null {
   if (!state.insuranceTaken || state.insuranceBet <= 0) {
@@ -122,8 +123,11 @@ export function resolveHand(hand: PlayerHand, dealerHand: DealerHand): RoundResu
 export function settleRound(state: GameState): GameState {
   const handResults = state.playerHands.map((hand) => resolveHand(hand, state.dealerHand));
   const insuranceResult = createInsuranceResult(state);
-  const roundResults = insuranceResult ? [...handResults, insuranceResult] : handResults;
-  const amountDelta = roundResults.reduce((total, result) => total + result.amount, 0);
+  const superMatchSummary = createSuperMatchSummary(state.superMatchBet, state.superMatchInitialHands);
+  const superMatchResult = createSuperMatchResult(superMatchSummary);
+  const roundResults = [...handResults, ...(insuranceResult ? [insuranceResult] : [])];
+  const amountDelta =
+    roundResults.reduce((total, result) => total + result.amount, 0) + (superMatchResult?.amount ?? 0);
   const chips = state.chips + amountDelta;
   const phase = chips <= 0 ? "gameOver" : "settlement";
 
@@ -132,6 +136,7 @@ export function settleRound(state: GameState): GameState {
     phase,
     chips,
     roundResults,
+    superMatchSummary,
     dealerHand: {
       ...state.dealerHand,
       holeCardRevealed: true,
