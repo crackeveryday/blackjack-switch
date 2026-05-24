@@ -141,6 +141,12 @@ select {
   font-weight: 600;
 }
 
+.round-action-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
 .dealer-panel,
 .hand-panel,
 .control-panel,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDebugScenarioState } from "./debugScenarios";
-import { getDisplayAvailableChips } from "./gameState";
+import { getDisplayAvailableChips, hit, splitHand } from "./gameState";
 
 describe("getDisplayAvailableChips", () => {
   it("returns chips during settlement", () => {
@@ -25,6 +25,19 @@ describe("createDebugScenarioState", () => {
     expect(state.playerHands[0].cards.map((card) => card.rank)).toEqual(["A", "A"]);
     expect(state.playerHands[0].canSplit).toBe(true);
     expect(state.deck.slice(0, 2).map((card) => card.rank)).toEqual(["10", "9"]);
+    expect(state.deck.length).toBeGreaterThan(2);
+  });
+
+  it("keeps enough cards to hit after splitting aces", () => {
+    const state = createDebugScenarioState("split-aces");
+    const splitState = splitHand(state);
+    const hitState = hit(splitState);
+
+    expect(splitState.phase).toBe("playerTurn");
+    expect(splitState.activeHandIndex).toBe(1);
+    expect(splitState.playerHands[0].cards.map((card) => card.rank)).toEqual(["A", "10"]);
+    expect(splitState.playerHands[1].cards.map((card) => card.rank)).toEqual(["A", "9"]);
+    expect(hitState.playerHands[1].cards.map((card) => card.rank)).toEqual(["A", "9", "2"]);
   });
 
   it("creates a game over scenario with reset-ready chips", () => {
