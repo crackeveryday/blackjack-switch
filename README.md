@@ -3,6 +3,8 @@
 React + TypeScript + Vite で作られた、シングルプレイ用の Blackjack Switch 実装です。  
 2 つの手札を同時に扱い、配られた 2 枚目同士を 1 回だけ入れ替える `Switch` を中心に、Insurance / Double Down / Split / Surrender まで含めてブラウザで遊べます。
 
+demo: https://crackeveryday.github.io/blackjack-switch/
+
 ## 特徴
 
 - 2 ハンド同時進行の Blackjack Switch ルールを実装
