@@ -19,7 +19,6 @@ export function canSplit(hand: PlayerHand, chips: number): boolean {
   return (
     hand.status === "active" &&
     !hand.hasActed &&
-    !hand.isFromSplit &&
     hasSameRank(hand.cards) &&
     chips >= hand.bet
   );

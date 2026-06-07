@@ -17,7 +17,7 @@ import {
   takeInsurance,
   undoLastAction,
 } from "./gameState";
-import { canDoubleDown, canSurrender } from "./rules";
+import { canDoubleDown, canSplit, canSurrender } from "./rules";
 
 function card(rank: Card["rank"], suit: Card["suit"] = "spades"): Card {
   return { rank, suit };
@@ -301,6 +301,32 @@ describe("splitHand", () => {
     ]);
     expect(nextState.playerHands[0].cards).toEqual([card("8"), card("3")]);
     expect(nextState.playerHands[1].cards).toEqual([card("8", "hearts"), card("4", "hearts")]);
+  });
+
+  it("allows a split hand to split again when it receives another pair", () => {
+    const state = basePlayerTurnState({
+      deck: [card("8", "clubs"), card("4", "hearts"), card("3", "clubs"), card("2", "diamonds")],
+      playerHands: [
+        hand({ id: "hand-1", cards: [card("8"), card("8", "hearts")] }),
+        hand({ id: "hand-2", cards: [card("10"), card("7")], canSplit: false }),
+      ],
+    });
+
+    const splitState = splitHand(state);
+    const resplitState = splitHand(splitState);
+
+    expect(splitState.activeHandIndex).toBe(0);
+    expect(splitState.playerHands[0].isFromSplit).toBe(true);
+    expect(splitState.playerHands[0].cards).toEqual([card("8"), card("8", "clubs")]);
+    expect(canSplit(splitState.playerHands[0], getAvailableChips(splitState))).toBe(true);
+    expect(resplitState.playerHands.map((currentHand) => currentHand.id)).toEqual([
+      "hand-1aa",
+      "hand-1ab",
+      "hand-1b",
+      "hand-2",
+    ]);
+    expect(resplitState.playerHands[0].cards).toEqual([card("8"), card("3", "clubs")]);
+    expect(resplitState.playerHands[1].cards).toEqual([card("8", "clubs"), card("2", "diamonds")]);
   });
 
   it("continues with the other split hand when one split hand reaches 21", () => {

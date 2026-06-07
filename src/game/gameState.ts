@@ -84,7 +84,6 @@ function refreshHand(hand: PlayerHand, wasSwitched: boolean): PlayerHand {
   const pair =
     hand.cards.length === 2 &&
     hand.cards[0].rank === hand.cards[1].rank &&
-    !hand.isFromSplit &&
     !hand.hasActed &&
     hand.status === "active";
 
