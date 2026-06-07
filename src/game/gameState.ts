@@ -105,7 +105,7 @@ function refreshHand(hand: PlayerHand, wasSwitched: boolean): PlayerHand {
 }
 
 function formatHandLabel(id: string): string {
-  const match = id.match(/^hand-(\d)([ab])?$/);
+  const match = id.match(/^hand-(\d+)([ab]*)$/);
 
   if (!match) {
     return id;

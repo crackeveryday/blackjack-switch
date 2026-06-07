@@ -5,8 +5,9 @@ import {
   canUndoRoundAction,
   createInitialGameState,
   dealNewRound,
-  getAvailableChips,
   doubleDown,
+  formatHandLabel,
+  getAvailableChips,
   hit,
   keepCards,
   splitHand,
@@ -57,6 +58,19 @@ function basePlayerTurnState(overrides: Partial<GameState> = {}): GameState {
     ...overrides,
   };
 }
+
+describe("formatHandLabel", () => {
+  it("formats base and split hand ids for display", () => {
+    expect(formatHandLabel("hand-1")).toBe("Hand 1");
+    expect(formatHandLabel("hand-1a")).toBe("Hand 1A");
+    expect(formatHandLabel("hand-1aa")).toBe("Hand 1AA");
+    expect(formatHandLabel("hand-1ab")).toBe("Hand 1AB");
+  });
+
+  it("returns unknown ids unchanged", () => {
+    expect(formatHandLabel("insurance")).toBe("insurance");
+  });
+});
 
 describe("dealNewRound", () => {
   it("starts a round normally when no Super Match bet is placed", () => {
