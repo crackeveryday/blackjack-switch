@@ -35,7 +35,7 @@ demo: https://crackeveryday.github.io/blackjack-switch/
 
 ### 必要環境
 
-- Node.js 18 以降推奨
+- Node.js 20.19 以上の 20 系、または 22.12 以降
 - npm
 
 ### インストール
@@ -104,4 +104,3 @@ src/
 - UI テキストは一部日本語、フェーズ名など一部英語です
 - チップ数は `localStorage` の `blackjack-switch-chips` キーで保持されます
 - `dist/` は生成物です
-
